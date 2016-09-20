@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.sql.*;
+import java.util.ResourceBundle;
 
 @Controller
 @RequestMapping("/")
@@ -19,21 +20,16 @@ public class MyController {
 
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     public String onLogin(Model model, @RequestParam String login, @RequestParam String password) throws SQLException {
-//        String log = login;
-//        String pas = password;
-        initDB();
-
-        return "result";
-    }
-
-    private static void initDB() {
-        String url = "jdbc:mysql://localhost:3306/TestDB";
-        String user = "root";
-        String password = 666999 + "";
-        System.out.println(url + " " + user + " " + password);
+        ResourceBundle res = ResourceBundle.getBundle("db");
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
         Connection connection = null;
         try {
-            connection = DriverManager.getConnection(url, user, password);
+            connection = DriverManager.getConnection(
+                    res.getString("db.url"), res.getString("db.user"), res.getString("db.password"));
 
             Statement statement = connection.createStatement();
             statement.execute("DROP TABLE IF EXISTS LogPas");
@@ -44,12 +40,28 @@ public class MyController {
 
             PreparedStatement preparedStatement =
                     connection.prepareStatement("INSERT INTO LogPas(login, password) VALUES (?,?)");
-            preparedStatement.setString(1, "sdfsf");
-            preparedStatement.setString(2, "sfsfsd");
+            preparedStatement.setString(1, login);
+            preparedStatement.setString(2, password);
             preparedStatement.executeUpdate();
-        } catch (SQLException e) {
 
+            preparedStatement = connection.prepareStatement("SELECT  * FROM LogPas");
+            ResultSet rs = preparedStatement.executeQuery();
+            ResultSetMetaData metaData = rs.getMetaData();
+            for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                System.out.print(metaData.getColumnName(i) + "\t\t");
+            }
+            System.out.println();
+            while (rs.next()) {
+                for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                    System.out.print(rs.getString(i) + "\t\t");
+                }
+                System.out.println();
+            }
+        } catch (SQLException e) {
             e.printStackTrace();
         }
+
+        return "result";
     }
+
 }
