@@ -1,17 +1,22 @@
 package ua.kiev.prog;
 
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.ResourceBundle;
 
 @Controller
 @RequestMapping("/")
 public class MyController {
+
+    static Connection connection;
+    static boolean flag = true;
 
     @RequestMapping("/")
     public String onIndex() {
@@ -19,14 +24,48 @@ public class MyController {
     }
 
     @RequestMapping(value = "/login", method = RequestMethod.POST)
-    public String onLogin(Model model, @RequestParam String login, @RequestParam String password) throws SQLException {
+    public ModelAndView onLogin(ModelAndView model, @RequestParam String login, @RequestParam String password) throws SQLException {
+        if (flag) {
+            initDB();
+            flag = false;
+        }
+        PreparedStatement preparedStatement =
+                connection.prepareStatement("INSERT INTO LogPas(login, password) VALUES (?,?)");
+        preparedStatement.setString(1, login);
+        preparedStatement.setString(2, password);
+        preparedStatement.executeUpdate();
+
+
+        preparedStatement = connection.prepareStatement("SELECT  * FROM LogPas");
+        ResultSet rs = preparedStatement.executeQuery();
+
+        List<String> list = new ArrayList<>();
+        ResultSetMetaData metaData = rs.getMetaData();
+
+        String s = "";
+        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+            s += (metaData.getColumnName(i) + "\t\t");
+        }
+        list.add(s += "\n");
+        while (rs.next()) {
+            String l = "";
+            for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                l += (rs.getString(i) + "\t\t");
+            }
+            list.add(l += "\n");
+        }
+        model.setViewName("result");
+        model.addObject("list", list);
+        return model;
+    }
+
+    private void initDB() {
         ResourceBundle res = ResourceBundle.getBundle("db");
         try {
             Class.forName("com.mysql.jdbc.Driver");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        Connection connection = null;
         try {
             connection = DriverManager.getConnection(
                     res.getString("db.url"), res.getString("db.user"), res.getString("db.password"));
@@ -38,30 +77,9 @@ public class MyController {
                     "login VARCHAR (10) NOT NULL," +
                     "password VARCHAR (10) NOT NULL)");
 
-            PreparedStatement preparedStatement =
-                    connection.prepareStatement("INSERT INTO LogPas(login, password) VALUES (?,?)");
-            preparedStatement.setString(1, login);
-            preparedStatement.setString(2, password);
-            preparedStatement.executeUpdate();
-
-            preparedStatement = connection.prepareStatement("SELECT  * FROM LogPas");
-            ResultSet rs = preparedStatement.executeQuery();
-            ResultSetMetaData metaData = rs.getMetaData();
-            for (int i = 1; i <= metaData.getColumnCount(); i++) {
-                System.out.print(metaData.getColumnName(i) + "\t\t");
-            }
-            System.out.println();
-            while (rs.next()) {
-                for (int i = 1; i <= metaData.getColumnCount(); i++) {
-                    System.out.print(rs.getString(i) + "\t\t");
-                }
-                System.out.println();
-            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
-        return "result";
     }
 
 }
